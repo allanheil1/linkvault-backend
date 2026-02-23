@@ -1,6 +1,3 @@
 ﻿namespace LinkVault.Domain;
 
-public class Class1
-{
-
-}
+// Placeholder removed; domain entities are defined under Entities.

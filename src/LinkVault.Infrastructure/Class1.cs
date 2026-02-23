@@ -1,6 +1,3 @@
 ﻿namespace LinkVault.Infrastructure;
 
-public class Class1
-{
-
-}
+// Placeholder removed; infrastructure services live in dedicated folders.
