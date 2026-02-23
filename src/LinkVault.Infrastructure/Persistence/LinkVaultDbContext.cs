@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LinkVault.Infrastructure.Persistence;
 
-public class LinkVaultDbContext : DbContext
+public class LinkVaultDbContext : DbContext, LinkVault.Application.Common.Interfaces.IAppDbContext
 {
     public LinkVaultDbContext(DbContextOptions<LinkVaultDbContext> options) : base(options)
     {
