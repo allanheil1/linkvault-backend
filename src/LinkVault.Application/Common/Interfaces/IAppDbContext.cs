@@ -12,4 +12,5 @@ public interface IAppDbContext
     DbSet<Tag> Tags { get; }
     DbSet<LinkTag> LinkTags { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 }
