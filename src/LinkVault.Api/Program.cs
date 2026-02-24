@@ -1,4 +1,5 @@
 using System.Text;
+using System.Reflection;
 using LinkVault.Application;
 using LinkVault.Infrastructure;
 using LinkVault.Infrastructure.Auth;
@@ -14,7 +15,15 @@ var jwtOptions = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+});
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -22,6 +31,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -39,10 +49,20 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
-    var origin = builder.Configuration.GetValue<string>("FRONTEND_ORIGIN") ?? "http://localhost:3000";
+    var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    var origins = configuredOrigins is { Length: > 0 }
+        ? configuredOrigins
+        : new[]
+        {
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3001"
+        };
+
     options.AddPolicy("frontend", policy =>
     {
-        policy.WithOrigins(origin)
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -73,7 +93,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("frontend");
 

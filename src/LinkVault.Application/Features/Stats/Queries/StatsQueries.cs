@@ -40,15 +40,17 @@ public class PopularTagsQueryHandler : IRequestHandler<PopularTagsQuery, IEnumer
     {
         var limit = Math.Clamp(request.Limit, 1, 20);
 
-        var data = await _context.LinkTags
-            .AsNoTracking()
-            .Where(lt => lt.Link.UserId == request.UserId)
-            .GroupBy(lt => new { lt.TagId, lt.Tag.Name })
-            .Select(g => new PopularTagDto(g.Key.TagId, g.Key.Name, g.Count()))
-            .OrderByDescending(t => t.LinkCount)
-            .ThenBy(t => t.Name)
-            .Take(limit)
-            .ToListAsync(cancellationToken);
+        var data = await (
+            from linkTag in _context.LinkTags.AsNoTracking()
+            join link in _context.Links.AsNoTracking() on linkTag.LinkId equals link.Id
+            join tag in _context.Tags.AsNoTracking() on linkTag.TagId equals tag.Id
+            where link.UserId == request.UserId && tag.UserId == request.UserId
+            group tag by new { tag.Id, tag.Name } into grouped
+            orderby grouped.Count() descending, grouped.Key.Name
+            select new PopularTagDto(grouped.Key.Id, grouped.Key.Name, grouped.Count())
+        )
+        .Take(limit)
+        .ToListAsync(cancellationToken);
 
         return data;
     }
