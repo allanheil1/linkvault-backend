@@ -1,0 +1,44 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: linkvault
+          POSTGRES_USER: linkvault
+          POSTGRES_PASSWORD: linkvault
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U linkvault -d linkvault"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      LINKVAULT_TEST_CONNECTIONSTRING: Host=localhost;Port=5432;Database=linkvault;Username=linkvault;Password=linkvault
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore LinkVault.sln
+
+      - name: Build
+        run: dotnet build LinkVault.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test LinkVault.sln --configuration Release --no-build

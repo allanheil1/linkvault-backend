@@ -1,4 +1,5 @@
-﻿using LinkVault.Api.Controllers.Extensions;
+﻿using LinkVault.Api.Common;
+using LinkVault.Api.Controllers.Extensions;
 using LinkVault.Application.Features.Links;
 using LinkVault.Application.Features.Links.Commands;
 using LinkVault.Application.Features.Links.Queries;
@@ -37,8 +38,11 @@ public class LinksController : ControllerBase
         var userId = HttpContext.GetUserId();
         if (userId is null) return Unauthorized();
 
-        var result = await _mediator.Send(new CreateLinkCommand(userId.Value, request.Url, request.Title, request.Note, request.CollectionId, request.TagIds ?? Array.Empty<Guid>()), ct);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        var result = await _mediator.Send(
+            new CreateLinkCommand(userId.Value, request.Url, request.Title, request.Note, request.CollectionId, request.TagIds ?? Array.Empty<Guid>()),
+            ct);
+
+        return result.ToActionResult(this, value => CreatedAtAction(nameof(GetById), new { id = value.Id }, value));
     }
 
     /// <summary>
@@ -63,8 +67,7 @@ public class LinksController : ControllerBase
             queryParams.Favorite,
             queryParams.Page ?? 1,
             queryParams.PageSize ?? 20,
-            queryParams.Sort
-        ), ct);
+            queryParams.Sort), ct);
 
         return Ok(result);
     }
@@ -103,8 +106,11 @@ public class LinksController : ControllerBase
         var userId = HttpContext.GetUserId();
         if (userId is null) return Unauthorized();
 
-        var result = await _mediator.Send(new UpdateLinkCommand(userId.Value, id, request.Url, request.Title, request.Note, request.CollectionId, request.TagIds ?? Array.Empty<Guid>(), request.IsFavorite), ct);
-        return Ok(result);
+        var result = await _mediator.Send(
+            new UpdateLinkCommand(userId.Value, id, request.Url, request.Title, request.Note, request.CollectionId, request.TagIds ?? Array.Empty<Guid>(), request.IsFavorite),
+            ct);
+
+        return result.ToActionResult(this);
     }
 
     /// <summary>
@@ -121,8 +127,8 @@ public class LinksController : ControllerBase
         var userId = HttpContext.GetUserId();
         if (userId is null) return Unauthorized();
 
-        await _mediator.Send(new DeleteLinkCommand(userId.Value, id), ct);
-        return NoContent();
+        var result = await _mediator.Send(new DeleteLinkCommand(userId.Value, id), ct);
+        return result.ToActionResult(this, () => NoContent());
     }
 
     /// <summary>

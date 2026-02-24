@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkVault.Infrastructure", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkVault.UnitTests", "tests\LinkVault.UnitTests\LinkVault.UnitTests.csproj", "{A2718977-1377-4A3A-A721-A51190BF9C97}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkVault.IntegrationTests", "tests\LinkVault.IntegrationTests\LinkVault.IntegrationTests.csproj", "{77CE2C84-6257-413D-958A-B006563A0FDE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +89,18 @@ Global
 		{A2718977-1377-4A3A-A721-A51190BF9C97}.Release|x64.Build.0 = Release|Any CPU
 		{A2718977-1377-4A3A-A721-A51190BF9C97}.Release|x86.ActiveCfg = Release|Any CPU
 		{A2718977-1377-4A3A-A721-A51190BF9C97}.Release|x86.Build.0 = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|x64.Build.0 = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Debug|x86.Build.0 = Debug|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|x64.ActiveCfg = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|x64.Build.0 = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|x86.ActiveCfg = Release|Any CPU
+		{77CE2C84-6257-413D-958A-B006563A0FDE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,5 +111,6 @@ Global
 		{55CD7DB7-4585-440B-8E3D-7E82433D3F02} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A5D7AE7A-DB1C-4376-8D8F-1168D6F5061E} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A2718977-1377-4A3A-A721-A51190BF9C97} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{77CE2C84-6257-413D-958A-B006563A0FDE} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -1,12 +1,13 @@
 using LinkVault.Application.Common.Interfaces;
+using LinkVault.Application.Common.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LinkVault.Application.Features.Links.Commands;
 
-public record DeleteLinkCommand(Guid UserId, Guid LinkId) : IRequest<Unit>;
+public record DeleteLinkCommand(Guid UserId, Guid LinkId) : IRequest<Result>;
 
-public class DeleteLinkCommandHandler : IRequestHandler<DeleteLinkCommand, Unit>
+public class DeleteLinkCommandHandler : IRequestHandler<DeleteLinkCommand, Result>
 {
     private readonly IAppDbContext _context;
 
@@ -15,14 +16,16 @@ public class DeleteLinkCommandHandler : IRequestHandler<DeleteLinkCommand, Unit>
         _context = context;
     }
 
-    public async Task<Unit> Handle(DeleteLinkCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeleteLinkCommand request, CancellationToken cancellationToken)
     {
         var link = await _context.Links.FirstOrDefaultAsync(l => l.Id == request.LinkId && l.UserId == request.UserId, cancellationToken);
         if (link == null)
-            throw new KeyNotFoundException("Link not found");
+        {
+            return Result.Failure(new ResultError(ResultErrorType.NotFound, "link_not_found", "Link not found."));
+        }
 
         _context.Links.Remove(link);
         await _context.SaveChangesAsync(cancellationToken);
-        return Unit.Value;
+        return Result.Success();
     }
 }

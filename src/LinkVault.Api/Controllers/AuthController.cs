@@ -37,7 +37,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest body, CancellationToken ct)
     {
         var result = await _mediator.Send(new RegisterCommand(body.Name, body.Email, body.Password), ct);
-        return CreatedAtAction(nameof(Me), new { }, result);
+        return Created("/auth/me", result);
     }
 
     /// <summary>

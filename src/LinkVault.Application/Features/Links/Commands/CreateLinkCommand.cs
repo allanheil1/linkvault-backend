@@ -1,13 +1,14 @@
 using LinkVault.Application.Common.Interfaces;
+using LinkVault.Application.Common.Results;
 using LinkVault.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LinkVault.Application.Features.Links.Commands;
 
-public record CreateLinkCommand(Guid UserId, string Url, string Title, string? Note, Guid? CollectionId, IEnumerable<Guid> TagIds) : IRequest<LinkDto>;
+public record CreateLinkCommand(Guid UserId, string Url, string Title, string? Note, Guid? CollectionId, IEnumerable<Guid> TagIds) : IRequest<Result<LinkDto>>;
 
-public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, LinkDto>
+public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, Result<LinkDto>>
 {
     private readonly IAppDbContext _context;
     private readonly IDateTimeProvider _clock;
@@ -18,7 +19,7 @@ public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, LinkD
         _clock = clock;
     }
 
-    public async Task<LinkDto> Handle(CreateLinkCommand request, CancellationToken cancellationToken)
+    public async Task<Result<LinkDto>> Handle(CreateLinkCommand request, CancellationToken cancellationToken)
     {
         var now = _clock.UtcNow;
 
@@ -28,7 +29,7 @@ public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, LinkD
             var ownsCollection = await _context.Collections.AnyAsync(c => c.Id == request.CollectionId && c.UserId == request.UserId, cancellationToken);
             if (!ownsCollection)
             {
-                throw new KeyNotFoundException("Collection not found");
+                return Result<LinkDto>.Failure(new ResultError(ResultErrorType.NotFound, "collection_not_found", "Collection not found."));
             }
         }
 
@@ -38,7 +39,7 @@ public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, LinkD
             var ownedTags = await _context.Tags.Where(t => t.UserId == request.UserId && tagIds.Contains(t.Id)).Select(t => t.Id).ToListAsync(cancellationToken);
             if (ownedTags.Count != tagIds.Count)
             {
-                throw new KeyNotFoundException("One or more tags not found");
+                return Result<LinkDto>.Failure(new ResultError(ResultErrorType.NotFound, "tags_not_found", "One or more tags were not found."));
             }
         }
 
@@ -66,6 +67,6 @@ public class CreateLinkCommandHandler : IRequestHandler<CreateLinkCommand, LinkD
         // hydrate navigation for dto
         await _context.Entry(link).Collection(l => l.LinkTags).LoadAsync(cancellationToken);
 
-        return link.ToDto();
+        return Result<LinkDto>.Success(link.ToDto());
     }
 }
