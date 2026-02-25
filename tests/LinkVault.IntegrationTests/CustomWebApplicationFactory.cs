@@ -8,7 +8,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment("Testing");
 
         builder.ConfigureAppConfiguration((_, configBuilder) =>
         {
@@ -17,7 +17,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Default"] = connectionString
+                ["ConnectionStrings:Default"] = connectionString,
+                ["RateLimiter:Login:PermitLimit"] = "500",
+                ["RateLimiter:Login:WindowSeconds"] = "60"
             });
         });
     }

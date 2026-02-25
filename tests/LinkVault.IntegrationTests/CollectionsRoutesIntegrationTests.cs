@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using LinkVault.IntegrationTests.Support;
 
@@ -7,61 +7,173 @@ namespace LinkVault.IntegrationTests;
 public class CollectionsRoutesIntegrationTests
 {
     [Fact]
-    public async Task Collections_Routes_ShouldSupportFullCrudAndCollectionLinksListing()
+    public async Task List_ShouldReturnUnauthorized_WhenMissingBearerToken()
     {
         using var factory = new CustomWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        await TestAuthHelper.RegisterAndLoginAsync(client, "collections");
+        var response = await client.GetAsync("/collections");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 
-        var createCollectionResponse = await client.PostAsJsonAsync("/collections", new CollectionRequest($"collection-{Guid.NewGuid():N}"));
-        var createCollectionBody = await createCollectionResponse.Content.ReadAsStringAsync();
-        Assert.True(createCollectionResponse.StatusCode == HttpStatusCode.Created, createCollectionBody);
-        var createdCollection = await createCollectionResponse.Content.ReadFromJsonAsync<CollectionResponse>();
-        Assert.NotNull(createdCollection);
+    [Fact]
+    public async Task Links_ShouldReturnUnauthorized_WhenMissingBearerToken()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
 
-        var listCollectionsResponse = await client.GetAsync("/collections");
-        Assert.Equal(HttpStatusCode.OK, listCollectionsResponse.StatusCode);
-        var listedCollections = await listCollectionsResponse.Content.ReadFromJsonAsync<List<CollectionResponse>>();
-        Assert.NotNull(listedCollections);
-        Assert.Contains(listedCollections!, collection => collection.Id == createdCollection!.Id);
+        var response = await client.GetAsync($"/collections/{Guid.NewGuid()}/links?page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 
-        var getByIdResponse = await client.GetAsync($"/collections/{createdCollection!.Id}");
-        Assert.Equal(HttpStatusCode.OK, getByIdResponse.StatusCode);
+    [Fact]
+    public async Task Create_ShouldReturnCreatedCollection()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-create");
 
-        var listLinksBeforeCreateResponse = await client.GetAsync($"/collections/{createdCollection.Id}/links?page=1&pageSize=10");
-        Assert.Equal(HttpStatusCode.OK, listLinksBeforeCreateResponse.StatusCode);
+        var name = $"collection-{Guid.NewGuid():N}";
+        var response = await client.PostAsJsonAsync("/collections", new CollectionRequest(name));
+        var body = await response.Content.ReadAsStringAsync();
 
-        var createLinkResponse = await client.PostAsJsonAsync("/links", new CreateLinkRequest(
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+
+        var payload = await response.Content.ReadFromJsonAsync<CollectionResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(name, payload!.Name);
+    }
+
+    [Fact]
+    public async Task List_ShouldReturnCreatedCollection()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-list");
+
+        var created = await CreateCollectionAsync(client);
+
+        var response = await client.GetAsync("/collections");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<List<CollectionResponse>>();
+        Assert.NotNull(payload);
+        Assert.Contains(payload!, collection => collection.Id == created.Id);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnCollection_WhenItExists()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-get");
+
+        var created = await CreateCollectionAsync(client);
+
+        var response = await client.GetAsync($"/collections/{created.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<CollectionResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(created.Id, payload!.Id);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnNotFound_WhenCollectionDoesNotExist()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-missing");
+
+        var response = await client.GetAsync($"/collections/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_ShouldReturnUpdatedCollection()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-update");
+
+        var created = await CreateCollectionAsync(client);
+        var updatedName = $"updated-collection-{Guid.NewGuid():N}";
+
+        var response = await client.PutAsJsonAsync($"/collections/{created.Id}", new CollectionRequest(updatedName));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.StatusCode == HttpStatusCode.OK, body);
+
+        var payload = await response.Content.ReadFromJsonAsync<CollectionResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(updatedName, payload!.Name);
+    }
+
+    [Fact]
+    public async Task Links_ShouldReturnPagedLinksFromCollection()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-links");
+
+        var collection = await CreateCollectionAsync(client);
+
+        var linkCreateResponse = await client.PostAsJsonAsync("/links", new CreateLinkRequest(
             $"https://collection.example/{Guid.NewGuid():N}",
             "Collection Link",
             null,
-            createdCollection.Id,
+            collection.Id,
             Array.Empty<Guid>()));
-        var createLinkBody = await createLinkResponse.Content.ReadAsStringAsync();
-        Assert.True(createLinkResponse.StatusCode == HttpStatusCode.Created, createLinkBody);
-        var createdLink = await createLinkResponse.Content.ReadFromJsonAsync<LinkResponse>();
+        var linkCreateBody = await linkCreateResponse.Content.ReadAsStringAsync();
+        Assert.True(linkCreateResponse.StatusCode == HttpStatusCode.Created, linkCreateBody);
+        var createdLink = await linkCreateResponse.Content.ReadFromJsonAsync<LinkResponse>();
         Assert.NotNull(createdLink);
 
-        var listLinksAfterCreateResponse = await client.GetAsync($"/collections/{createdCollection.Id}/links?page=1&pageSize=10");
-        Assert.Equal(HttpStatusCode.OK, listLinksAfterCreateResponse.StatusCode);
-        var listedLinks = await listLinksAfterCreateResponse.Content.ReadFromJsonAsync<PagedResult<LinkResponse>>();
-        Assert.NotNull(listedLinks);
-        Assert.Contains(listedLinks!.Items, link => link.Id == createdLink!.Id);
+        var response = await client.GetAsync($"/collections/{collection.Id}/links?page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var updatedName = $"updated-collection-{Guid.NewGuid():N}";
-        var updateCollectionResponse = await client.PutAsJsonAsync($"/collections/{createdCollection.Id}", new CollectionRequest(updatedName));
-        var updateCollectionBody = await updateCollectionResponse.Content.ReadAsStringAsync();
-        Assert.True(updateCollectionResponse.StatusCode == HttpStatusCode.OK, updateCollectionBody);
-        var updatedCollection = await updateCollectionResponse.Content.ReadFromJsonAsync<CollectionResponse>();
-        Assert.NotNull(updatedCollection);
-        Assert.Equal(updatedName, updatedCollection!.Name);
+        var payload = await response.Content.ReadFromJsonAsync<PagedResult<LinkResponse>>();
+        Assert.NotNull(payload);
+        Assert.Contains(payload!.Items, link => link.Id == createdLink!.Id);
+    }
 
-        var deleteCollectionResponse = await client.DeleteAsync($"/collections/{createdCollection.Id}");
-        Assert.Equal(HttpStatusCode.NoContent, deleteCollectionResponse.StatusCode);
+    [Fact]
+    public async Task Links_ShouldReturnNotFound_WhenCollectionDoesNotExist()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-links-missing");
 
-        var getAfterDeleteResponse = await client.GetAsync($"/collections/{createdCollection.Id}");
-        Assert.Equal(HttpStatusCode.NotFound, getAfterDeleteResponse.StatusCode);
+        var response = await client.GetAsync($"/collections/{Guid.NewGuid()}/links?page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_ShouldRemoveCollection()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "collections-delete");
+
+        var created = await CreateCollectionAsync(client);
+
+        var deleteResponse = await client.DeleteAsync($"/collections/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+
+        var getResponse = await client.GetAsync($"/collections/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+    }
+
+    private static async Task<CollectionResponse> CreateCollectionAsync(HttpClient client)
+    {
+        var name = $"collection-{Guid.NewGuid():N}";
+        var response = await client.PostAsJsonAsync("/collections", new CollectionRequest(name));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+
+        var payload = await response.Content.ReadFromJsonAsync<CollectionResponse>();
+        Assert.NotNull(payload);
+        return payload!;
     }
 
     private sealed record CollectionRequest(string Name);

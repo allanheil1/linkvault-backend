@@ -81,10 +81,13 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddRateLimiter(options =>
 {
+    var permitLimit = builder.Configuration.GetValue<int?>("RateLimiter:Login:PermitLimit") ?? 5;
+    var windowSeconds = builder.Configuration.GetValue<int?>("RateLimiter:Login:WindowSeconds") ?? 60;
+
     options.AddFixedWindowLimiter("login", opt =>
     {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromSeconds(windowSeconds);
+        opt.PermitLimit = permitLimit;
         opt.QueueLimit = 0;
     });
 });

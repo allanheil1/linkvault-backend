@@ -140,7 +140,7 @@ public class AuthController : ControllerBase
         var sameSite = SameSiteMode.Strict;
         var secure = true;
 
-        if (_environment.IsDevelopment())
+        if (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))
         {
             // Use Lax in development to avoid browsers rejecting insecure SameSite=None cookies.
             sameSite = SameSiteMode.Lax;

@@ -7,47 +7,114 @@ namespace LinkVault.IntegrationTests;
 public class StatsRoutesIntegrationTests
 {
     [Fact]
-    public async Task Stats_Routes_ShouldReturnOverviewAndPopularTags()
+    public async Task Overview_ShouldReturnUnauthorized_WhenMissingBearerToken()
     {
         using var factory = new CustomWebApplicationFactory();
         using var client = factory.CreateClient();
 
-        await TestAuthHelper.RegisterAndLoginAsync(client, "stats");
+        var response = await client.GetAsync("/stats/overview");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 
-        var createTagResponse = await client.PostAsJsonAsync("/tags", new TagRequest($"stats-tag-{Guid.NewGuid():N}"));
-        var createTagBody = await createTagResponse.Content.ReadAsStringAsync();
-        Assert.True(createTagResponse.StatusCode == HttpStatusCode.Created, createTagBody);
-        var createdTag = await createTagResponse.Content.ReadFromJsonAsync<TagResponse>();
-        Assert.NotNull(createdTag);
+    [Fact]
+    public async Task Overview_ShouldReturnCurrentUserCounters()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "stats-overview");
 
-        var createCollectionResponse = await client.PostAsJsonAsync("/collections", new CollectionRequest($"stats-collection-{Guid.NewGuid():N}"));
-        var createCollectionBody = await createCollectionResponse.Content.ReadAsStringAsync();
-        Assert.True(createCollectionResponse.StatusCode == HttpStatusCode.Created, createCollectionBody);
-        var createdCollection = await createCollectionResponse.Content.ReadFromJsonAsync<CollectionResponse>();
-        Assert.NotNull(createdCollection);
+        var collection = await CreateCollectionAsync(client);
+        var firstTag = await CreateTagAsync(client);
+        var secondTag = await CreateTagAsync(client);
 
-        var createLinkResponse = await client.PostAsJsonAsync("/links", new CreateLinkRequest(
+        var firstLink = await CreateLinkAsync(client, collection.Id, new[] { firstTag.Id, secondTag.Id });
+        await CreateLinkAsync(client, collection.Id, new[] { firstTag.Id });
+
+        var favoriteResponse = await client.PatchAsync($"/links/{firstLink.Id}/favorite", null);
+        var favoriteBody = await favoriteResponse.Content.ReadAsStringAsync();
+        Assert.True(favoriteResponse.StatusCode == HttpStatusCode.OK, favoriteBody);
+
+        var response = await client.GetAsync("/stats/overview");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<StatsOverviewResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(2, payload!.TotalLinks);
+        Assert.Equal(1, payload.FavoriteLinks);
+        Assert.Equal(2, payload.TotalTags);
+        Assert.Equal(1, payload.TotalCollections);
+    }
+
+    [Fact]
+    public async Task PopularTags_ShouldReturnUnauthorized_WhenMissingBearerToken()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/stats/popular-tags?limit=5");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PopularTags_ShouldReturnMostUsedTag_RespectingLimit()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+        await TestAuthHelper.RegisterAndLoginAsync(client, "stats-popular");
+
+        var collection = await CreateCollectionAsync(client);
+        var frequentTag = await CreateTagAsync(client);
+        var occasionalTag = await CreateTagAsync(client);
+
+        await CreateLinkAsync(client, collection.Id, new[] { frequentTag.Id, occasionalTag.Id });
+        await CreateLinkAsync(client, collection.Id, new[] { frequentTag.Id });
+
+        var response = await client.GetAsync("/stats/popular-tags?limit=1");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<List<PopularTagResponse>>();
+        Assert.NotNull(payload);
+        Assert.Single(payload!);
+        Assert.Equal(frequentTag.Id, payload[0].Id);
+        Assert.Equal(2, payload[0].LinkCount);
+    }
+
+    private static async Task<TagResponse> CreateTagAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/tags", new TagRequest($"stats-tag-{Guid.NewGuid():N}"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+
+        var payload = await response.Content.ReadFromJsonAsync<TagResponse>();
+        Assert.NotNull(payload);
+        return payload!;
+    }
+
+    private static async Task<CollectionResponse> CreateCollectionAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/collections", new CollectionRequest($"stats-collection-{Guid.NewGuid():N}"));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
+
+        var payload = await response.Content.ReadFromJsonAsync<CollectionResponse>();
+        Assert.NotNull(payload);
+        return payload!;
+    }
+
+    private static async Task<LinkResponse> CreateLinkAsync(HttpClient client, Guid collectionId, IEnumerable<Guid> tagIds)
+    {
+        var response = await client.PostAsJsonAsync("/links", new CreateLinkRequest(
             $"https://stats.example/{Guid.NewGuid():N}",
             "Stats Link",
-            "For stats route validation",
-            createdCollection!.Id,
-            new[] { createdTag!.Id }));
-        var createLinkBody = await createLinkResponse.Content.ReadAsStringAsync();
-        Assert.True(createLinkResponse.StatusCode == HttpStatusCode.Created, createLinkBody);
+            "Generated by stats integration tests",
+            collectionId,
+            tagIds));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created, body);
 
-        var overviewResponse = await client.GetAsync("/stats/overview");
-        Assert.Equal(HttpStatusCode.OK, overviewResponse.StatusCode);
-        var overview = await overviewResponse.Content.ReadFromJsonAsync<StatsOverviewResponse>();
-        Assert.NotNull(overview);
-        Assert.True(overview!.TotalLinks >= 1);
-        Assert.True(overview.TotalTags >= 1);
-        Assert.True(overview.TotalCollections >= 1);
-
-        var popularTagsResponse = await client.GetAsync("/stats/popular-tags?limit=5");
-        Assert.Equal(HttpStatusCode.OK, popularTagsResponse.StatusCode);
-        var popularTags = await popularTagsResponse.Content.ReadFromJsonAsync<List<PopularTagResponse>>();
-        Assert.NotNull(popularTags);
-        Assert.Contains(popularTags!, tag => tag.Id == createdTag.Id);
+        var payload = await response.Content.ReadFromJsonAsync<LinkResponse>();
+        Assert.NotNull(payload);
+        return payload!;
     }
 
     private sealed record TagRequest(string Name);
@@ -55,6 +122,7 @@ public class StatsRoutesIntegrationTests
     private sealed record CollectionRequest(string Name);
     private sealed record CollectionResponse(Guid Id, string Name, DateTimeOffset CreatedAt);
     private sealed record CreateLinkRequest(string Url, string Title, string? Note, Guid? CollectionId, IEnumerable<Guid> TagIds);
+    private sealed record LinkResponse(Guid Id, string Url, string Title, string? Note, Guid? CollectionId, bool IsFavorite);
     private sealed record StatsOverviewResponse(int TotalLinks, int FavoriteLinks, int TotalTags, int TotalCollections);
     private sealed record PopularTagResponse(Guid Id, string Name, int LinkCount);
 }
