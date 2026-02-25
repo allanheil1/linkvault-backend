@@ -19,11 +19,13 @@ public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
 
-    public AuthController(IMediator mediator, IConfiguration configuration)
+    public AuthController(IMediator mediator, IConfiguration configuration, IHostEnvironment environment)
     {
         _mediator = mediator;
         _configuration = configuration;
+        _environment = environment;
     }
 
     /// <summary>
@@ -138,8 +140,7 @@ public class AuthController : ControllerBase
         var sameSite = SameSiteMode.Strict;
         var secure = true;
 
-        var env = _configuration.GetValue<string>("ASPNETCORE_ENVIRONMENT");
-        if (string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase))
+        if (_environment.IsDevelopment())
         {
             // Use Lax in development to avoid browsers rejecting insecure SameSite=None cookies.
             sameSite = SameSiteMode.Lax;
